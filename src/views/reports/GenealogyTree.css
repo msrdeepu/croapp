@@ -1,0 +1,126 @@
+/* Genealogy Tree CSS */
+.genealogy-scroll {
+    overflow-x: auto;
+    padding: 20px;
+    text-align: center;
+}
+
+.genealogy-tree {
+    display: inline-block;
+    min-width: 100%;
+}
+
+.genealogy-tree ul {
+    padding-top: 20px;
+    position: relative;
+    padding-left: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.genealogy-tree li {
+    text-align: center;
+    list-style-type: none;
+    position: relative;
+    padding: 40px 10px 0 10px;
+    /* Increased top/side padding */
+}
+
+/* Connectors */
+.genealogy-tree li::before,
+.genealogy-tree li::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 50%;
+    border-top: 2px solid #ccc;
+    width: 50%;
+    height: 20px;
+}
+
+.genealogy-tree li::after {
+    right: auto;
+    left: 50%;
+    border-left: 2px solid #ccc;
+}
+
+/* Remove connectors from the single root */
+.genealogy-tree li:only-child::after,
+.genealogy-tree li:only-child::before {
+    display: none;
+}
+
+/* Remove connectors from first child */
+.genealogy-tree li:first-child::before,
+.genealogy-tree li:last-child::after {
+    border: 0 none;
+}
+
+/* Add vertical connector to the last child */
+.genealogy-tree li:last-child::before {
+    border-right: 2px solid #ccc;
+    border-radius: 0 5px 0 0;
+}
+
+.genealogy-tree li:first-child::after {
+    border-radius: 5px 0 0 0;
+}
+
+/* Downward connector from parent */
+.genealogy-tree ul ul::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    border-left: 2px solid #ccc;
+    width: 0;
+    height: 40px;
+    /* Increased vertical spacing */
+}
+
+/* Member Box */
+.member-view-box {
+    padding: 0px 40px;
+    /* Increased horizontal padding */
+    text-align: center;
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.member-image {
+    width: 100px;
+    position: relative;
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    margin: 0 auto;
+    transition: all 0.3s;
+}
+
+.member-image:hover {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    border-color: #3b82f6;
+    /* Blue-500 */
+}
+
+.member-details h5 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 5px 0;
+}
+
+.member-details span {
+    font-size: 12px;
+    color: #666;
+    display: block;
+}
+
+/* Show/Hide logic is handled by React state, 
+   but we can add transitions here */
+/* Show/Hide logic is handled by React state, 
+   but we can add transitions here - currently placeholder removed to fix warning */
