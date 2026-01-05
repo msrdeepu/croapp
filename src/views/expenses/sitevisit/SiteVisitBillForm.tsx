@@ -235,13 +235,20 @@ const SiteVisitBillForm: React.FC<SiteVisitBillFormProps> = ({
                 body: data
             });
 
-            const res = await response.json();
-
-            if (res.status) {
-                navigate('/expenses/site-visit');
+            // Check HTTP status first
+            if (response.ok) {
+                const res = await response.json();
+                // Double check the response body status if it exists
+                if (res.status === true || res.status === 'true' || !('status' in res)) {
+                    navigate('/expenses/site-visit');
+                } else {
+                    console.error(res.message);
+                    alert('Error: ' + (res.message || 'Unknown error'));
+                }
             } else {
+                const res = await response.json();
                 console.error(res.message);
-                alert('Error: ' + res.message);
+                alert('Error: ' + (res.message || 'Failed to save bill'));
             }
         } catch (error) {
             console.error('Error saving bill:', error);
@@ -438,9 +445,10 @@ const SiteVisitBillForm: React.FC<SiteVisitBillFormProps> = ({
                             className="cursor-pointer"
                         />
                         {isEdit && (initialData?.media_url || initialData?.bill_attachment) && (
-                            <div className="mt-2">
-                                <img
-                                    src={
+                            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <p className="text-sm text-gray-600 mb-2">Current Attachment:</p>
+                                <a
+                                    href={
                                         initialData.media_url ||
                                         (() => {
                                             try {
@@ -453,9 +461,15 @@ const SiteVisitBillForm: React.FC<SiteVisitBillFormProps> = ({
                                             }
                                         })()
                                     }
-                                    alt="Attachment"
-                                    className="max-h-[200px] border rounded p-1"
-                                />
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline font-medium flex items-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    View/Download Current Attachment
+                                </a>
                             </div>
                         )}
                     </div>

@@ -6,11 +6,14 @@ import { Label } from "src/components/ui/label";
 import { Input } from "src/components/ui/input";
 import { Button } from "src/components/ui/button";
 import { SearchableSelect } from "src/components/ui/searchable-select";
+import { DatePicker } from "src/components/ui/date-picker";
 import Spinner from 'src/views/spinner/Spinner';
 import { API_BASE_URL } from 'src/config';
+import { useAuth } from 'src/context/AuthContext';
 import { ArrowLeft } from 'lucide-react';
 
 const EditAgentChain = () => {
+    const { token } = useAuth();
     const { id } = useParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
@@ -29,26 +32,40 @@ const EditAgentChain = () => {
     const [stateOptions, setStateOptions] = useState<any[]>([]);
     const [districtOptions, setDistrictOptions] = useState<any[]>([]);
 
+    // Date of Birth state
+    const [dob, setDob] = useState<Date | undefined>(undefined);
+
+
 
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
                 // 1. Fetch Form Data (Settings, etc)
                 const formResponse = await fetch(`${API_BASE_URL}/profiles/form-data`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
                 });
-                const formDataResult = await formResponse.json();
 
-                setBranches(formDataResult.branches || []);
-                setMaritals(formDataResult.maritals || []);
-                setCountries(formDataResult.countries || []);
-                setAgents(formDataResult.agents || []); // Full agent list for introducer
+                if (formResponse.ok) {
+                    const text = await formResponse.text();
+                    let formDataResult;
+                    try {
+                        formDataResult = JSON.parse(text);
+                    } catch (e) {
+                        if (text.trim().startsWith('[]')) {
+                            formDataResult = JSON.parse(text.trim().substring(2));
+                        } else {
+                            throw e;
+                        }
+                    }
 
-                // Set Up-line lists (Assuming API returns these or we filter from agents or dedicated endpoint)
-                // For now, if API doesn't separate them, we might need to rely on what we have or add more endpoints.
-                // The PHP controller's `getFormData` returned pms, spms etc? Let's check.
-                // Yes, I added plevels, etc. but maybe not all separate lists. 
-                // Let's assume for now we use 'agents' list for all chain dropdowns as a fallback, filtering if possible.
+                    setBranches(formDataResult.branches || []);
+                    setMaritals(formDataResult.maritals || []);
+                    setCountries(formDataResult.countries || []);
+                    setAgents(formDataResult.agents || []); // Full agent list for introducer
+                }
 
             } catch (error) {
                 console.error("Error fetching form data:", error);
@@ -58,17 +75,38 @@ const EditAgentChain = () => {
         const fetchProfile = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/profiles/${id}`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
                 });
-                const data = await response.json();
-                setProfile(data);
 
-                // Initialize form state
-                setFormData(data);
+                if (response.ok) {
+                    const text = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        if (text.trim().startsWith('[]')) {
+                            data = JSON.parse(text.trim().substring(2));
+                        } else {
+                            throw e;
+                        }
+                    }
+                    setProfile(data);
 
-                // Load dependent data (State/District) if Country/State exist
-                if (data.country) handleCountryChange(data.country);
-                if (data.state) handleStateChange(data.state);
+                    // Initialize form state
+                    setFormData(data);
+
+                    // Initialize DOB from profile data
+                    if (data.dob) {
+                        setDob(new Date(data.dob));
+                    }
+
+                    // Load dependent data (State/District) if Country/State exist
+                    if (data.country) handleCountryChange(data.country);
+                    if (data.state) handleStateChange(data.state);
+                }
 
             } catch (error) {
                 console.error("Error fetching profile:", error);
@@ -77,8 +115,11 @@ const EditAgentChain = () => {
             }
         };
 
-        fetchInitialData().then(fetchProfile);
-    }, [id]);
+
+        if (id && token) {
+            fetchInitialData().then(fetchProfile);
+        }
+    }, [id, token]);
 
     const handleInputChange = (e: any) => {
         const { name, value } = e.target;
@@ -94,7 +135,10 @@ const EditAgentChain = () => {
         // Fetch States
         try {
             const res = await fetch(`${API_BASE_URL}/data/states/${countryId}`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
             });
             const states = await res.json();
             // Convert object to array for Select
@@ -108,7 +152,10 @@ const EditAgentChain = () => {
         // Fetch Districts
         try {
             const res = await fetch(`${API_BASE_URL}/data/districts/${stateId}`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
             });
             const districts = await res.json();
             const options = Object.entries(districts).map(([id, name]) => ({ value: id, label: name as string }));
@@ -119,13 +166,28 @@ const EditAgentChain = () => {
     const handleSubmit = async (e: any) => {
         e.preventDefault();
         try {
+            // Format date helper
+            const formatDate = (d: Date | undefined) => {
+                if (!d) return '';
+                const offset = d.getTimezoneOffset();
+                const date = new Date(d.getTime() - (offset * 60 * 1000));
+                return date.toISOString().split('T')[0];
+            };
+
+            // Prepare form data with formatted DOB
+            const submitData = {
+                ...formData,
+                dob: formatDate(dob)
+            };
+
             const res = await fetch(`${API_BASE_URL}/profiles/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(submitData)
             });
             if (res.ok) {
                 navigate('/agent-approvals'); // Or go back to list
@@ -206,7 +268,11 @@ const EditAgentChain = () => {
                         </div>
                         <div className="space-y-2">
                             <Label>Date of Birth</Label>
-                            <Input type="date" name="dob" value={formData.dob || ''} onChange={handleInputChange} required />
+                            <DatePicker
+                                date={dob}
+                                setDate={setDob}
+                                placeholder="Select date of birth"
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Marital Status</Label>
@@ -233,7 +299,7 @@ const EditAgentChain = () => {
                             />
                         </div>
 
-                        {profile.pay_validation_status ? (
+                        {profile.registration_fee_paid ? (
                             <>
                                 <div className="space-y-2">
                                     <Label>Project Manager (PM)</Label>

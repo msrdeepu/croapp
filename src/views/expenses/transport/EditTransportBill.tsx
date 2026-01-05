@@ -12,6 +12,14 @@ import {
 import { Button } from 'src/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import TransportBillForm from './TransportBillForm';
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "src/components/ui/breadcrumb"
 
 const EditTransportBill = () => {
     const { id } = useParams();
@@ -67,8 +75,26 @@ const EditTransportBill = () => {
     }
 
     return (
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-            <div className="flex items-center gap-4">
+        <div className="p-6">
+            <div className="mb-4">
+                <Breadcrumb>
+                    <BreadcrumbList>
+                        <BreadcrumbItem>
+                            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbLink href="/expenses/transport">Transport Expenses</BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbPage>Edit</BreadcrumbPage>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6">
                 <Button variant="outline" size="icon" onClick={() => navigate('/expenses/transport')}>
                     <ArrowLeft className="h-4 w-4" />
                 </Button>

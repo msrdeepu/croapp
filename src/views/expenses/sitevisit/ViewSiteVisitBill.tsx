@@ -261,17 +261,27 @@ const ViewSiteVisitBill = () => {
                         </div>
                     </div>
 
-                    {/* Attachment Section - Compact */}
+                    {/* Attachment Section */}
                     {attachmentUrl && (
                         <div className="border rounded-lg overflow-hidden mt-4">
-                            <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
+                            <div className="bg-gray-50 px-4 py-3 border-b">
                                 <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-blue-600" />
                                     Attachment
                                 </h3>
-                                {/* Optional: View Full / Download actions could go here */}
                             </div>
-                            <div className="bg-gray-100/50 p-4 flex justify-center">
-                                <img src={attachmentUrl} alt="Bill Attachment" className="max-h-[400px] object-contain rounded shadow-sm" />
+                            <div className="bg-white p-4">
+                                <a
+                                    href={attachmentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    View/Download Attachment
+                                </a>
                             </div>
                         </div>
                     )}

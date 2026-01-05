@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Card,
     CardHeader,
@@ -30,7 +30,7 @@ import {
     SelectValue,
 } from "src/components/ui/select"
 import { Label } from 'src/components/ui/label';
-import { Loader2, MoreVertical, Printer, Pencil, Plus, Copy, FileSpreadsheet, FileText, Eye, Trash } from 'lucide-react';
+import { Loader2, MoreVertical, Printer, Pencil, Plus, Copy, FileSpreadsheet, FileText, Eye, Trash, CheckCircle2, X } from 'lucide-react';
 import { useAuth } from 'src/context/AuthContext';
 import { ENDPOINTS } from 'src/config';
 import {
@@ -45,14 +45,29 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "src/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "src/components/ui/alert";
 
 const TransportBills = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { token } = useAuth();
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [showSuccess, setShowSuccess] = useState(false);
+
+    // Check for success parameter
+    useEffect(() => {
+        if (searchParams.get('success') === 'true') {
+            setShowSuccess(true);
+            // Clear the success param from URL
+            searchParams.delete('success');
+            setSearchParams(searchParams, { replace: true });
+            // Auto hide after 5 seconds
+            setTimeout(() => setShowSuccess(false), 5000);
+        }
+    }, [searchParams, setSearchParams]);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -225,6 +240,27 @@ const TransportBills = () => {
                     </BreadcrumbList>
                 </Breadcrumb>
             </div>
+
+            {/* Success Flash Message */}
+            {showSuccess && (
+                <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-full fade-in zoom-in-95 duration-300 ease-out">
+                    <Alert className="shadow-2xl border-0 p-4 flex items-start gap-4 min-w-[300px] max-w-[400px] bg-green-500 text-white rounded-xl relative pr-10">
+                        <CheckCircle2 className="h-6 w-6 text-white shrink-0 mt-0.5" />
+                        <div className="flex flex-col">
+                            <AlertTitle className="mb-0 text-base font-bold text-white">Success!</AlertTitle>
+                            <AlertDescription className="text-sm text-white/90 mt-1 font-medium leading-tight">
+                                Transport bill saved successfully!
+                            </AlertDescription>
+                        </div>
+                        <button
+                            onClick={() => setShowSuccess(false)}
+                            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </Alert>
+                </div>
+            )}
 
             <Card>
                 <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">

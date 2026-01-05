@@ -425,6 +425,7 @@ const EditCustomer = () => {
     const handleSubmit = async () => {
         // Validation (Same as Create)
         if (!surName || !fullName || !selectedBranch || !panNo || !aadharNo || !dob || !joinedOn || !mobile || !email || !selectedCountry || !selectedState || !selectedDistrict) {
+            console.log('Validation failed:', { surName, fullName, selectedBranch, panNo, aadharNo, dob, joinedOn, mobile, email, selectedCountry, selectedState, selectedDistrict });
             showAlert('error', 'Validation Error', 'Please fill in all mandatory fields (marked with *).');
             return;
         }

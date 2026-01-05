@@ -273,7 +273,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ initialData, onSuccess, onC
     };
 
     const handleChange = (field: string, val: string) => {
-        setFormData(prev => ({ ...prev, [field]: val }));
+        setFormData((prev: any) => ({ ...prev, [field]: val }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

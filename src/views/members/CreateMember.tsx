@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from 'src/components/ui/card';
 import {
     Breadcrumb,
