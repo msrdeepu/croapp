@@ -33,7 +33,7 @@ import {
     SelectValue,
 } from 'src/components/ui/select';
 import { Input } from 'src/components/ui/input';
-import { Copy, FileSpreadsheet, FileText, Printer } from 'lucide-react';
+import { Copy, FileSpreadsheet, FileText, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -143,12 +143,33 @@ interface PlotItem {
     plot_no: string;
 }
 
+// Listed Property interface for the Property Customers table
+interface ListedProperty {
+    code: string;
+    plot_no: string;
+    status: string;
+    price?: number | string;
+    discount?: number | string;
+    cost?: number | string;
+    paid?: number | string;
+    outstanding?: number | string;
+    dips?: number | string;
+    receipts?: number;
+    amount?: string;
+    balance?: string;
+    lastpayment?: string | null;
+    agent_code?: string;
+    customer_name?: string;
+    contact?: string | null;
+}
+
 interface ReportData {
     pageTitle: string;
     receipts_count: number;
     total_project_value: string;
     total_sale: string;
     outstanding: string;
+    total_properties?: number;
     area: { ankanams: number; sqft: number };
     business: BusinessStats;
 
@@ -156,7 +177,7 @@ interface ReportData {
 
     regplots_count?: number;
     registeredPaidAmount?: string;
-    regplots?: Record<string, number> | string[] | PlotItem[]; // Handling potential object or array
+    regplots?: Record<string, number> | string[] | PlotItem[];
 
     paidRegPendingplots_count?: number;
     paidRegPendingplots?: Record<string, number> | string[] | PlotItem[];
@@ -194,6 +215,11 @@ interface ReportData {
     investorplots?: Record<string, number> | string[] | PlotItem[];
     investorPaidAmount?: string;
 
+    // EMI Plots
+    emiplots_count?: number;
+    emiplots?: Record<string, number> | string[] | PlotItem[];
+    emiPaidAmount?: string;
+
     redzoneplots_count?: number;
     redzoneplots?: Record<string, number> | string[] | PlotItem[];
     redzonePaidAmount?: string;
@@ -204,6 +230,9 @@ interface ReportData {
 
     bookedOutstanding?: string | number;
     bookedOutstandingProps?: OutstandingProperty[];
+
+    // Listed Properties
+    listed_properties?: ListedProperty[];
 
     receipts: Receipt[];
     venture?: VentureDetails;
@@ -312,32 +341,6 @@ const ProjectBusinessReport = () => {
         }
     };
 
-    // Pagination & Search State
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    // Filter Logic
-    const filteredReceipts = reportData?.receipts?.filter(receipt => {
-        if (!searchTerm) return true;
-        const lowerTerm = searchTerm.toLowerCase();
-        return (
-            receipt.receipt_number?.toLowerCase().includes(lowerTerm) ||
-            receipt.customer_name?.toLowerCase().includes(lowerTerm) ||
-            receipt.property_title?.toLowerCase().includes(lowerTerm) ||
-            receipt.status?.toLowerCase().includes(lowerTerm) ||
-            receipt.agent_code?.toLowerCase().includes(lowerTerm) ||
-            receipt.purpose?.toLowerCase().includes(lowerTerm) ||
-            receipt.property_code?.toLowerCase().includes(lowerTerm)
-        );
-    }) || [];
-
-    // Pagination Logic
-    const indexOfLastItem = currentPage * pageSize;
-    const indexOfFirstItem = indexOfLastItem - pageSize;
-    const currentReceipts = filteredReceipts.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredReceipts.length / pageSize);
-
     // Booked Outstanding Pagination & Search
     const [pageBooked, setPageBooked] = useState(1);
     const [pageSizeBooked, setPageSizeBooked] = useState(10);
@@ -387,81 +390,171 @@ const ProjectBusinessReport = () => {
     const currentAgreementItems = filteredAgreementProps.slice(indexOfFirstAgreement, indexOfLastAgreement);
     const totalAgreementPages = Math.ceil(filteredAgreementProps.length / pageSizeAgreement);
 
-    // Export Handlers
-    const handleCopy = () => {
-        if (!reportData?.receipts) return;
-        const headers = ['Receipt No', 'Date', 'Name', 'Property', 'Prty Code', 'Agent', 'Purpose', 'Mode', 'Status', 'Amount'];
+    // Listed Properties (Property Customers) Search State
+    const [searchListedProps, setSearchListedProps] = useState('');
+
+    const filteredListedProps = reportData?.listed_properties?.filter(prop => {
+        if (!searchListedProps) return true;
+        const lowerTerm = searchListedProps.toLowerCase();
+        return (
+            String(prop.code || '').toLowerCase().includes(lowerTerm) ||
+            String(prop.plot_no || '').toLowerCase().includes(lowerTerm) ||
+            String(prop.status || '').toLowerCase().includes(lowerTerm) ||
+            String(prop.customer_name || '').toLowerCase().includes(lowerTerm) ||
+            String(prop.agent_code || '').toLowerCase().includes(lowerTerm) ||
+            String(prop.contact || '').toLowerCase().includes(lowerTerm)
+        );
+    }) || [];
+
+    // Listed Properties Pagination & Sorting
+    const [pageListed, setPageListed] = useState(1);
+    const [pageSizeListed, setPageSizeListed] = useState(10);
+    const [sortConfigListed, setSortConfigListed] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+    const sortedListedProps = [...filteredListedProps].sort((a, b) => {
+        if (!sortConfigListed) return 0;
+        const { key, direction } = sortConfigListed;
+
+        // Helper to get raw value handling potentially nested or formatted data if needed
+        // For now, simple access is fine as data is flat
+        const aValue = (a as any)[key];
+        const bValue = (b as any)[key];
+
+        if (aValue === bValue) return 0;
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+
+        // Numeric sort for specific columns or if values look like numbers
+        // Price, Discount, Cost, Paid, Outstanding, Dips, Receipts, Amount, Balance are likely numeric strings or numbers
+        const numericKeys = ['price', 'discount', 'cost', 'paid', 'outstanding', 'dips', 'receipts', 'amount', 'balance', 'plot_no'];
+
+        if (numericKeys.includes(key)) {
+            const aNum = parseFloat(String(aValue).replace(/[^0-9.-]+/g, ""));
+            const bNum = parseFloat(String(bValue).replace(/[^0-9.-]+/g, ""));
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                return direction === 'asc' ? aNum - bNum : bNum - aNum;
+            }
+        }
+
+        // Default string sort
+        return direction === 'asc'
+            ? String(aValue).localeCompare(String(bValue))
+            : String(bValue).localeCompare(String(aValue));
+    });
+
+    // Reset pagination when filter changes
+    // This is a side effect, usually handled in useEffect, but we can just clamp page
+    // Actually, best to effectively reset page in render or useEffect if filtered count changes drastically
+    // For simplicity, we won't auto-reset page here to avoid loops, but user might be on page 10 and filter reduces to 1 page.
+    // We can handle that by checking if pageListed > totalListedPages during render
+
+    const totalListedPages = Math.ceil(sortedListedProps.length / pageSizeListed);
+    const effectivePageListed = Math.min(pageListed, Math.max(1, totalListedPages));
+
+    useEffect(() => {
+        if (pageListed > totalListedPages && totalListedPages > 0) {
+            setPageListed(totalListedPages);
+        }
+    }, [totalListedPages, pageListed]);
+
+    const indexOfLastListed = effectivePageListed * pageSizeListed;
+    const indexOfFirstListed = indexOfLastListed - pageSizeListed;
+    const currentListedItems = sortedListedProps.slice(Math.max(0, indexOfFirstListed), indexOfLastListed);
+
+    const requestSortListed = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfigListed && sortConfigListed.key === key && sortConfigListed.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfigListed({ key, direction });
+    };
+
+    // Listed Properties Export Handlers
+    const handleCopyListedProps = () => {
+        if (!filteredListedProps.length) return;
+        const headers = ['Property #', 'Plot', 'Status', 'Price', 'Discount', 'Cost', 'Paid', 'Outstanding', 'Dips', 'Receipts', 'Amount', 'Balance', 'Last Payment', 'Agent', 'Customer', 'Contact'];
         const csvContent = [
             headers.join('\t'),
-            ...filteredReceipts.map(r => [
-                r.receipt_number,
-                r.paidon.split(' ')[0],
-                r.customer_name,
-                r.property_title || '-',
-                r.property_code || '-',
-                r.agent_code || '-',
-                r.purpose || '-',
-                r.payment_method,
-                r.status,
-                r.paid_amount
+            ...filteredListedProps.map(p => [
+                p.code || '-',
+                p.plot_no || '-',
+                p.status || '-',
+                p.price || '-',
+                p.discount || '-',
+                p.cost || '-',
+                p.paid || '-',
+                p.outstanding || '-',
+                p.dips || '-',
+                p.receipts || '-',
+                p.amount || '-',
+                p.balance || '-',
+                p.lastpayment || '-',
+                p.agent_code || '-',
+                p.customer_name || '-',
+                p.contact || '-'
             ].join('\t'))
         ].join('\n');
         navigator.clipboard.writeText(csvContent);
-        alert('Data copied to clipboard');
+        alert('Property Customers data copied to clipboard');
     };
 
-    const handleExportExcel = () => {
-        if (!reportData?.receipts) return;
-        const data = filteredReceipts.map(r => ({
-            'Receipt No': r.receipt_number,
-            'Date': r.paidon.split(' ')[0],
-            'Name': r.customer_name,
-            'Property': r.property_title || '-',
-            'Property Code': r.property_code || '-',
-            'Agent Code': r.agent_code || '-',
-            'Purpose': r.purpose || '-',
-            'Mode': r.payment_method,
-            'Status': r.status,
-            'Amount': r.paid_amount
+    const handleExportExcelListedProps = () => {
+        if (!filteredListedProps.length) return;
+        const data = filteredListedProps.map(p => ({
+            'Property #': p.code || '-',
+            'Plot': p.plot_no || '-',
+            'Status': p.status || '-',
+            'Price': p.price || '-',
+            'Discount': p.discount || '-',
+            'Cost': p.cost || '-',
+            'Paid': p.paid || '-',
+            'Outstanding': p.outstanding || '-',
+            'Dips': p.dips || '-',
+            'Receipts': p.receipts || '-',
+            'Amount': p.amount || '-',
+            'Balance': p.balance || '-',
+            'Last Payment': p.lastpayment || '-',
+            'Agent': p.agent_code || '-',
+            'Customer': p.customer_name || '-',
+            'Contact': p.contact || '-'
         }));
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Receipts");
-        XLSX.writeFile(wb, "receipts_export.xlsx");
+        XLSX.utils.book_append_sheet(wb, ws, "Property Customers");
+        XLSX.writeFile(wb, "property_customers_export.xlsx");
     };
 
-    const handleExportPDF = () => {
-        if (!reportData?.receipts) return;
-        const doc = new jsPDF();
-        doc.text("Receipts List", 14, 15);
+    const handleExportPDFListedProps = () => {
+        if (!filteredListedProps.length) return;
+        const doc = new jsPDF('landscape');
+        doc.text("Property Customers", 14, 15);
         doc.setFontSize(10);
         doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
 
-        const tableColumn = ['Receipt No', 'Date', 'Name', 'Property', 'Prty Code', 'Agent', 'Purpose', 'Mode', 'Status', 'Amount'];
-        const tableRows = filteredReceipts.map(r => [
-            r.receipt_number,
-            r.paidon.split(' ')[0],
-            r.customer_name,
-            r.property_title || '-',
-            r.property_code || '-',
-            r.agent_code || '-',
-            r.purpose || '-',
-            r.payment_method,
-            r.status,
-            r.paid_amount
+        const tableColumn = ['Property #', 'Plot', 'Status', 'Price', 'Cost', 'Paid', 'Outstanding', 'Agent', 'Customer'];
+        const tableRows = filteredListedProps.map(p => [
+            p.code || '-',
+            p.plot_no || '-',
+            p.status || '-',
+            p.price || '-',
+            p.cost || '-',
+            p.paid || '-',
+            p.outstanding || '-',
+            p.agent_code || '-',
+            p.customer_name || '-'
         ]);
 
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
             startY: 25,
-            styles: { fontSize: 8 },
+            styles: { fontSize: 7 },
             headStyles: { fillColor: [66, 66, 66] }
         });
-        doc.save("receipts_export.pdf");
+        doc.save("property_customers_export.pdf");
     };
 
-    const handlePrint = () => {
+    const handlePrintListedProps = () => {
         window.print();
     };
 
@@ -633,7 +726,7 @@ const ProjectBusinessReport = () => {
                     </div>
 
                     {/* Key Metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-medium">Total Project Value</CardTitle>
@@ -664,6 +757,14 @@ const ProjectBusinessReport = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{reportData.receipts_count}</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Active Plots</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{reportData.total_properties || 0}</div>
                             </CardContent>
                         </Card>
                     </div>
@@ -1138,6 +1239,53 @@ const ProjectBusinessReport = () => {
                         </AccordionItem>
                     </Accordion>
 
+                    {/* EMI Plots Accordion */}
+                    <Accordion type="single" collapsible className="w-full bg-white dark:bg-gray-800 rounded-lg border shadow-sm px-4 mb-4">
+                        <AccordionItem value="emi-details" className="border-b-0">
+                            <AccordionTrigger className="hover:no-underline py-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full text-left gap-4 pr-4">
+                                    <span className="text-lg font-semibold text-gray-900 dark:text-white">EMI Plots Details</span>
+                                    <div className="flex flex-wrap items-center gap-6">
+                                        <div className="flex flex-col items-start sm:items-end">
+                                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">EMI Plots</span>
+                                            <span className="text-xl font-bold text-gray-900 dark:text-white">{reportData?.emiplots_count || 0}</span>
+                                        </div>
+                                        <div className="flex flex-col items-start sm:items-end">
+                                            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Paid Amount</span>
+                                            <span className="text-xl font-bold text-cyan-600">₹ {reportData?.emiPaidAmount || '0'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <div className="pt-2 pb-4 border-t">
+                                    <h4 className="text-sm font-semibold mb-3 text-gray-500">EMI Plot Nos</h4>
+                                    {reportData?.emiplots && (Object.keys(reportData.emiplots).length > 0 || (Array.isArray(reportData.emiplots) && reportData.emiplots.length > 0)) ? (
+                                        <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto">
+                                            {Array.isArray(reportData.emiplots)
+                                                ? reportData.emiplots.map((item, index) => {
+                                                    const displayValue = typeof item === 'object' && item !== null && 'plot_no' in item ? (item as PlotItem).plot_no : String(item);
+                                                    return (
+                                                        <span key={index} className="px-2 py-1 bg-cyan-50 text-cyan-700 text-xs font-semibold rounded border border-cyan-100">
+                                                            {displayValue}
+                                                        </span>
+                                                    );
+                                                })
+                                                : Object.entries(reportData.emiplots).map(([code, plot_no]) => (
+                                                    <span key={code} className="px-2 py-1 bg-cyan-50 text-cyan-700 text-xs font-semibold rounded border border-cyan-100">
+                                                        {String(plot_no)}
+                                                    </span>
+                                                ))
+                                            }
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-500 italic">No EMI plots found.</p>
+                                    )}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+
                     {/* Not For Sale (NFS) Accordion */}
                     <Accordion type="single" collapsible className="w-full bg-white dark:bg-gray-800 rounded-lg border shadow-sm px-4 mb-4">
                         <AccordionItem value="nfs-details" className="border-b-0">
@@ -1517,133 +1665,168 @@ const ProjectBusinessReport = () => {
 
 
 
-                    {/* Receipts Table */}
-                    <Card>
-                        <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
-                            <CardTitle>Receipts ({reportData.receipts?.length || 0})</CardTitle>
-                            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                                <div className="flex items-center gap-2">
-                                    <Button variant="outline" size="sm" onClick={handleCopy} title="Copy to Clipboard">
-                                        <Copy className="h-4 w-4 mr-1" /> Copy
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={handleExportExcel} title="Export to Excel">
-                                        <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={handleExportPDF} title="Export to PDF">
-                                        <FileText className="h-4 w-4 mr-1" /> PDF
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={handlePrint} title="Print">
-                                        <Printer className="h-4 w-4 mr-1" /> Print
-                                    </Button>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        placeholder="Search..."
-                                        value={searchTerm}
-                                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                                        className="h-8 w-40"
-                                    />
-                                    <Select
-                                        value={pageSize.toString()}
-                                        onValueChange={(val) => { setPageSize(Number(val)); setCurrentPage(1); }}
-                                    >
-                                        <SelectTrigger className="w-[70px] h-8">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="5">5</SelectItem>
-                                            <SelectItem value="10">10</SelectItem>
-                                            <SelectItem value="25">25</SelectItem>
-                                            <SelectItem value="50">50</SelectItem>
-                                            <SelectItem value="100">100</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Receipt No</TableHead>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Property</TableHead>
-                                            <TableHead>Prty Code</TableHead>
-                                            <TableHead>Agent</TableHead>
-                                            <TableHead>Purpose</TableHead>
-                                            <TableHead>Mode</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {currentReceipts.length > 0 ? (
-                                            currentReceipts.map((receipt) => (
-                                                <TableRow key={receipt.id}>
-                                                    <TableCell>{receipt.receipt_number}</TableCell>
-                                                    <TableCell>{receipt.paidon.split(' ')[0]}</TableCell>
-                                                    <TableCell>{receipt.customer_name}</TableCell>
-                                                    <TableCell>{receipt.property_title}</TableCell>
-                                                    <TableCell>{receipt.property_code || '-'}</TableCell>
-                                                    <TableCell>{receipt.agent_code || '-'}</TableCell>
-                                                    <TableCell>
-                                                        <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${receipt.purpose === 'Plot Booking' ? 'bg-blue-100 text-blue-700' :
-                                                            receipt.purpose === 'Renewal' ? 'bg-green-100 text-green-700' :
-                                                                receipt.purpose === 'Document Value' ? 'bg-purple-100 text-purple-700' :
-                                                                    'bg-gray-100 text-gray-700'
-                                                            }`}>
-                                                            {receipt.purpose || '-'}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell>{receipt.payment_method}</TableCell>
-                                                    <TableCell>{receipt.status}</TableCell>
-                                                    <TableCell className="text-right font-medium">₹ {receipt.paid_amount}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={10} className="text-center h-24">
-                                                    No receipts found.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-
-                            {/* Pagination Controls */}
-                            {filteredReceipts.length > 0 && (
-                                <div className="flex items-center justify-between mt-4">
-                                    <div className="text-sm text-gray-500">
-                                        Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredReceipts.length)} of {filteredReceipts.length} entries
+                    {/* Property Customers (Listed Properties) Table */}
+                    {reportData && (
+                        <Card>
+                            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <CardTitle className="text-lg font-semibold bg-yellow-100 dark:bg-yellow-900/30 px-4 py-2 rounded">
+                                    Property Customers ({filteredListedProps.length})
+                                </CardTitle>
+                                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="sm" onClick={handleCopyListedProps} title="Copy to Clipboard">
+                                            <Copy className="h-4 w-4 mr-1" /> Copy
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handleExportExcelListedProps} title="Export to Excel">
+                                            <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handleExportPDFListedProps} title="Export to PDF">
+                                            <FileText className="h-4 w-4 mr-1" /> PDF
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handlePrintListedProps} title="Print">
+                                            <Printer className="h-4 w-4 mr-1" /> Print
+                                        </Button>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
-                                        >
-                                            Previous
-                                        </Button>
-                                        <div className="text-sm font-medium">
-                                            Page {currentPage} of {totalPages}
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                        >
-                                            Next
-                                        </Button>
+                                        <Select value={String(pageSizeListed)} onValueChange={(val) => { setPageSizeListed(Number(val)); setPageListed(1); }}>
+                                            <SelectTrigger className="h-8 w-[70px]">
+                                                <SelectValue placeholder="10" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {[10, 25, 50, 100, 500].map(size => (
+                                                    <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Input
+                                            placeholder="Search..."
+                                            value={searchListedProps}
+                                            onChange={(e) => setSearchListedProps(e.target.value)}
+                                            className="h-8 w-48"
+                                        />
                                     </div>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4 w-full">
+                                    <div className="border rounded-md overflow-hidden grid">
+                                        <div className="overflow-x-auto w-full max-w-[85vw] md:max-w-[calc(100vw-260px)]">
+                                            <table className="min-w-max w-full text-xs text-left">
+                                                <thead className="bg-gray-100 text-gray-700 uppercase font-semibold">
+                                                    <tr>
+                                                        {[
+                                                            { label: 'Property #', key: 'code' },
+                                                            { label: 'Plot', key: 'plot_no' },
+                                                            { label: 'Status', key: 'status' },
+                                                            { label: 'Price', key: 'price' },
+                                                            { label: 'Discount', key: 'discount' },
+                                                            { label: 'Cost', key: 'cost' },
+                                                            { label: 'Paid', key: 'paid' },
+                                                            { label: 'Outstanding', key: 'outstanding' },
+                                                            { label: 'Dips', key: 'dips' },
+                                                            { label: 'Receipts', key: 'receipts' },
+                                                            { label: 'Amount', key: 'amount' },
+                                                            { label: 'Balance', key: 'balance' },
+                                                            { label: 'Last Payment', key: 'lastpayment' },
+                                                            { label: 'Agent', key: 'agent_code' },
+                                                            { label: 'Customer', key: 'customer_name' },
+                                                            { label: 'Contact No#', key: 'contact' }
+                                                        ].map(({ label, key }) => (
+                                                            <th
+                                                                key={key}
+                                                                className="px-2 py-2 border-b whitespace-nowrap cursor-pointer hover:bg-gray-200 transition-colors"
+                                                                onClick={() => requestSortListed(key)}
+                                                            >
+                                                                <div className="flex items-center gap-1">
+                                                                    {label}
+                                                                    {sortConfigListed?.key === key ? (
+                                                                        sortConfigListed.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                                                    ) : (
+                                                                        <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                                                                    )}
+                                                                </div>
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {currentListedItems.length > 0 ? (
+                                                        currentListedItems.map((prop, index) => (
+                                                            <tr key={index} className="hover:bg-gray-50/50">
+                                                                <td className="px-2 py-2 font-medium whitespace-nowrap">{prop.code}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.plot_no}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">
+                                                                    <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${prop.status === 'Booked' ? 'bg-blue-100 text-blue-700' :
+                                                                        prop.status === 'On Agreement' ? 'bg-purple-100 text-purple-700' :
+                                                                            prop.status === 'Paid Registration Pending' ? 'bg-orange-100 text-orange-700' :
+                                                                                'bg-gray-100 text-gray-700'
+                                                                        }`}>
+                                                                        {prop.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.price || '-'}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.discount || '-'}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.cost || '-'}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.paid || '-'}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">
+                                                                    {(prop.status === 'Booked' || prop.status === 'On Agreement' || prop.status === 'Available')
+                                                                        ? prop.outstanding
+                                                                        : '0'}
+                                                                </td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.dips || '-'}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.receipts || ''}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.amount || ''}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.balance || ''}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.lastpayment || ''}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.agent_code || ''}</td>
+                                                                <td className="px-2 py-2 max-w-[150px] truncate" title={prop.customer_name}>{prop.customer_name || ''}</td>
+                                                                <td className="px-2 py-2 whitespace-nowrap">{prop.contact || ''}</td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan={16} className="px-4 py-8 text-center text-gray-500 italic">
+                                                                No property customers found.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Pagination Controls */}
+                                    {filteredListedProps.length > 0 && (
+                                        <div className="flex items-center justify-between mt-2 px-2">
+                                            <div className="text-xs text-muted-foreground">
+                                                Page {pageListed} of {totalListedPages || 1} ({filteredListedProps.length} items)
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0"
+                                                    onClick={() => setPageListed(p => Math.max(1, p - 1))}
+                                                    disabled={pageListed === 1}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0"
+                                                    onClick={() => setPageListed(p => Math.min(totalListedPages, p + 1))}
+                                                    disabled={pageListed === totalListedPages || totalListedPages === 0}
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             )
             }

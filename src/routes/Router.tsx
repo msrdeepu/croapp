@@ -73,6 +73,7 @@ const CreateDocument = Loadable(lazy(() => import('../views/documents/CreateDocu
 const EditDocument = Loadable(lazy(() => import('../views/documents/EditDocument')));
 
 const ManageMembers = Loadable(lazy(() => import('../views/members/ManageMembers')));
+const ManageAgents = Loadable(lazy(() => import('../views/members/ManageAgents')));
 const CreateMember = Loadable(lazy(() => import('../views/members/CreateMember')));
 const EditMember = Loadable(lazy(() => import('../views/members/EditMember')));
 const ViewMember = Loadable(lazy(() => import('../views/members/ViewMember')));
@@ -163,6 +164,7 @@ const Router = [
       { path: '/documents/create', element: <CreateDocument /> },
       { path: '/documents/edit/:id', element: <EditDocument /> },
       { path: '/members', element: <ManageMembers /> },
+      { path: '/members/agents', element: <ManageAgents /> },
       { path: '/members/create', element: <CreateMember /> },
       { path: '/members/edit/:id', element: <EditMember /> },
       { path: '/members/view/:id', element: <ViewMember /> },

@@ -1,14 +1,15 @@
 'use client';
 
-import { Icon } from '@iconify/react';
-import * as profileData from './Data';
-import SimpleBar from 'simplebar-react';
-import { Link } from 'react-router';
+// Hidden for now, uncomment to enable profile menu items
+// import { Icon } from '@iconify/react';
+// import * as profileData from './Data';
+// import SimpleBar from 'simplebar-react';
+// import { Link } from 'react-router';
 import profileimg from 'src/assets/images/profile/user-1.jpg';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  // DropdownMenuItem, // Hidden for now
   DropdownMenuTrigger,
 } from 'src/components/ui/dropdown-menu';
 import { Button } from 'src/components/ui/button';
@@ -31,7 +32,8 @@ const Profile = () => {
           align="end"
           className="w-screen sm:w-[200px] pb-6 pt-4 rounded-sm border border-ld"
         >
-          <SimpleBar>
+          {/* Profile menu items - Hidden for now, uncomment to enable */}
+          {/* <SimpleBar>
             {profileData.profileDD.map((items, index) => (
               <DropdownMenuItem
                 key={index}
@@ -55,7 +57,7 @@ const Profile = () => {
                 </Link>
               </DropdownMenuItem>
             ))}
-          </SimpleBar>
+          </SimpleBar> */}
 
           <div className="pt-2 px-4">
             <Button

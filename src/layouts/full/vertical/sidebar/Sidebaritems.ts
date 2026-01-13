@@ -115,6 +115,7 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         children: [
           { name: 'Manage Members', id: uniqueId(), url: '/members' },
+          { name: 'Manage Agents', id: uniqueId(), url: '/members/agents' },
           { name: 'Create Employees', id: uniqueId(), url: '/members/employee-creds' },
           { name: 'Joining / Promotion', id: uniqueId(), url: '/agent-approvals' },
         ],

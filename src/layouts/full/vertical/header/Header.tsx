@@ -1,6 +1,6 @@
 import { useState, useEffect, useEffectEvent } from 'react';
 import { Icon } from '@iconify/react';
-import Messages from './Messages';
+// import Messages from './Messages'; // Hidden for now, uncomment to enable notifications
 import FullLogo from '../../shared/logo/FullLogo';
 import Profile from './Profile';
 import SidebarLayout from '../sidebar/Sidebar';
@@ -117,8 +117,8 @@ const Header = () => {
                 </div>
               )}
 
-              {/* Messages Dropdown */}
-              <Messages />
+              {/* Messages Dropdown - Hidden for now, uncomment to enable */}
+              {/* <Messages /> */}
 
               {/* Profile Dropdown */}
               <Profile />
@@ -152,7 +152,7 @@ const Header = () => {
                     </span>
                   </div>
                 )}
-                <Messages />
+                {/* <Messages /> */}
                 <Profile />
               </div>
             </div>
